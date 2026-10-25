@@ -1,0 +1,16 @@
+{
+  "name": "cs6620-team-project",
+  "private": true,
+  "type": "module",
+  "engines": {
+    "node": ">=24 <25"
+  },
+  "scripts": {
+    "preflight": "node scripts/preflight.mjs",
+    "check:aws": "node scripts/preflight.mjs --aws",
+    "test": "node scripts/scanner-smoke.mjs",
+    "test:http": "node scripts/http-smoke.mjs",
+    "local:up": "docker compose up --build -d --wait",
+    "local:down": "docker compose down"
+  }
+}

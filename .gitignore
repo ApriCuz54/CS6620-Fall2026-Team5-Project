@@ -1,0 +1,21 @@
+# Local configuration and credentials
+.env
+.env.*
+!.env.example
+.aws/
+*.pem
+*.key
+*.tfstate
+*.tfstate.*
+.terraform/
+*.tfplan
+*.tfvars
+!*.tfvars.example
+backend.hcl
+crash.log
+.DS_Store
+node_modules/
+coverage/
+.local/
+reports/
+# Keep .terraform.lock.hcl under version control once generated.
