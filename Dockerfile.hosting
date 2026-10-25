@@ -1,0 +1,11 @@
+FROM node:24-bookworm-slim
+WORKDIR /app
+COPY package.json package-lock.json ./
+RUN npm ci --omit=dev --ignore-scripts && npm cache clean --force
+COPY --chown=node:node services/ ./services/
+COPY --chown=node:node scripts/cloud-worker.mjs ./scripts/cloud-worker.mjs
+# Runtime configuration is mounted read-only, never baked with credentials.
+USER node
+ENV NODE_ENV=production NODE_OPTIONS=--max-old-space-size=128
+EXPOSE 3200
+CMD ["node", "services/cloud/server.mjs"]
