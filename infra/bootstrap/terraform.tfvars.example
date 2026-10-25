@@ -1,0 +1,4 @@
+# Non-secret example values. Replace with the verified lab account and unique bucket name.
+aws_region     = "us-east-1"
+aws_account_id = "123456789012"
+bucket_name    = "cs6620-team-state-123456789012-us-east-1"

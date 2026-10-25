@@ -1,0 +1,7 @@
+# Copy to the target stack's backend.hcl and replace with your real values.
+bucket       = "replace-with-unique-team-state-bucket"
+key          = "bootstrap/terraform.tfstate"
+region       = "us-east-1"
+encrypt      = true
+use_lockfile = true
+# For the future application stack, use app/terraform.tfstate instead.
