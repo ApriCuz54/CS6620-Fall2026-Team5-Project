@@ -67,3 +67,10 @@ Read docs/IMPLEMENTATION_PLAN.md. Aditya resolves feasibility and builds the com
 - infra/README.md: Terraform bootstrap and shared state
 
 The upstream repository includes tracked node_modules directories. Ignore rules do not untrack those files. Do not commit dependency churn; agree a separate cleanup commit after the team remote is configured. Do not run arbitrary fixture source code; submit it to the scanner as text.
+
+## Individual teammate handoffs
+
+- [Arvind: GitHub workflow and client](docs/handoffs/ARVIND.md)
+- [Chengyuan: real SAST worker and isolation](docs/handoffs/CHENGYUAN.md)
+
+These guides distinguish working dummy interfaces from proposed real-scanner decisions. They do not mark the full foundation handoff complete; production schema, integration and fresh-machine validation still need coordination.
