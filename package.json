@@ -8,9 +8,36 @@
   "scripts": {
     "preflight": "node scripts/preflight.mjs",
     "check:aws": "node scripts/preflight.mjs --aws",
-    "test": "node scripts/scanner-smoke.mjs",
+    "test": "node scripts/scanner-smoke.mjs && node --test tests/*.test.mjs",
     "test:http": "node scripts/http-smoke.mjs",
     "local:up": "docker compose up --build -d --wait",
-    "local:down": "docker compose down"
+    "local:down": "docker compose down",
+    "test:foundation": "node --test tests/*.test.mjs",
+    "api:dev": "node --env-file-if-exists=.env services/gate/server.mjs",
+    "api:demo": "node --env-file-if-exists=.env scripts/api-demo.mjs",
+    "api:cloud": "node --env-file-if-exists=.env services/cloud/server.mjs",
+    "worker:cloud": "node --env-file-if-exists=.env scripts/cloud-worker.mjs",
+    "cloud:smoke": "node --env-file-if-exists=.env scripts/cloud-smoke.mjs",
+    "cloud:demo": "node --env-file-if-exists=.env scripts/cloud-demo.mjs",
+    "hosting:token": "node scripts/provision-service-token.mjs",
+    "hosting:publish": "node scripts/publish-runtime.mjs",
+    "hosting:prepare": "node scripts/prepare-hosting.mjs",
+    "hosting:plan": "terraform -chdir=infra/app plan",
+    "hosting:apply": "terraform -chdir=infra/app apply",
+    "hosting:down": "terraform -chdir=infra/app destroy",
+    "hosting:demo": "node --env-file-if-exists=.env scripts/hosting-demo.mjs",
+    "hosting:smoke": "node scripts/hosting-smoke.mjs",
+    "hosting:diagnostics": "node scripts/hosting-diagnostics.mjs",
+    "hosting:failover": "node scripts/hosting-failover.mjs"
+  },
+  "dependencies": {
+    "@aws-sdk/client-dynamodb": "3.1156.0",
+    "@aws-sdk/client-s3": "3.1156.0",
+    "@aws-sdk/client-sqs": "3.1156.0",
+    "@aws-sdk/client-ssm": "3.1156.0",
+    "@aws-sdk/client-sts": "3.1156.0",
+    "@aws-sdk/lib-dynamodb": "3.1156.0",
+    "@aws-sdk/s3-request-presigner": "3.1156.0",
+    "express": "4.22.3"
   }
 }

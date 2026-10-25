@@ -3,12 +3,13 @@
 Record evidence, date, region and outcome for each item. Do not mark a gate verified solely because the tool is installed.
 
 - [x] Local temporary-session identity passed; selected region us-east-1 (recheck after credential refresh).
-- [ ] Available credits, expected active hours and teardown budget are recorded. Obtain a regional estimate for ALB, two EC2 nodes, two NAT gateways, storage, queues and logs. Do not assume the old single-instance cost estimate applies.
-- [ ] Existing lab instance role/profile can be attached and has the needed access; confirm PassRole and any restrictions without creating replacement IAM roles.
-- [ ] Two AZs, VPC/subnet/route/security-group creation, public IPv4/NAT/EIP quotas and outbound package/image access are feasible.
-- [ ] Verify proposed API Gateway default HTTPS endpoint, VPC link and internal ALB integration. No purchased domain is required for this proposed alternative. List access is confirmed; create/integration permissions remain unverified.
-- [ ] EC2 launch template and ASG can run two nodes across two private subnets and recover a terminated node.
-- [ ] S3, SQS/DLQ, DynamoDB conditional writes, CloudWatch, SSM SecureString and required KMS behavior are permitted.
+- [x] Last-reported credits $45 and regional hosting estimate recorded in HOSTING.md: about $0.15/hr base for two micros, internal ALB, two NAT/EIPs and disks, plus usage. Teardown instructions preserve storage. Live balance and test-session duration remain owner responsibilities.
+- [x] LabInstanceProfile attached to both nodes; ECR pulls, CloudWatch logging, SSM verifier decryption and hosted S3/SQS/DynamoDB job flow verified without personal credentials on EC2. Existing broad LabRole is a documented lab constraint.
+- [x] New two-AZ VPC/private nodes, SGs, two public NAT/EIPs, S3/DynamoDB gateway endpoints and package/image bootstrap are deployed and verified.
+- [x] API Gateway default HTTPS endpoint, VPC link and internal ALB are deployed; authenticated requests and rejected unauthenticated submissions verified. No owned domain needed.
+- [x] Launch template/ASG run two healthy private micros across two AZs; reversible one-node application outage passed.
+- [ ] Actual terminated-instance replacement and interrupted real-worker recovery still require separate validation.
+- [x] S3, SQS/DLQ, DynamoDB conditional writes, CloudWatch and SSM SecureString using default AWS-managed encryption are permitted and tested in the hosted dummy flow; no custom KMS key created.
 - [ ] Shared S3 state allows encryption, versioning and lock-object access; all deployers can use the agreed profile/role.
 - [x] Supplied scanner handles clean/vulnerable smoke fixtures locally and in Docker; production timeout/resource limits remain to be measured.
 - [ ] Team repository and all three collaborators are ready.

@@ -6,18 +6,19 @@ Team: Aditya Chatterjee, Arvind Dharmesh Parekh, Chengyuan Sun.
 
 A fresh clone of the course repository, the original SAST and pentest code, a local Docker scanner configuration, repeatable setup/smoke checks, a working encrypted/versioned S3 Terraform state backend with a documented Learner Lab bootstrap exception, setup and handoff checklists, and our updated proposal. The original course README is unchanged.
 
-This is the setup baseline. The authenticated asynchronous API, AWS application resources, production worker, GitHub merge gate and cloud deployment are still to be built. A passing local scanner check does not mean the foundation is ready for teammate handoff.
+This is the setup baseline. A shared HTTPS dummy API has been deployed and tested on two private AWS instances; availability depends on whether hosting is currently deployed; see docs/HOSTING.md. The production scanner worker, real GitHub merge gate and full handoff acceptance remain to be built. Local-only and laptop/AWS-storage development adapters remain available. A passing local scanner check does not mean the foundation is ready for teammate handoff.
 
 ## 1. Open the project
 
 ```sh
 cd "$HOME/Desktop/CloudComputing/Team Project"
 cp .env.example .env
+npm ci --ignore-scripts
 npm run preflight
 npm test
 ```
 
-No root npm install is needed: the setup scripts use Node's standard library. Use Node.js 24.x. Git, npm, Docker Desktop with Compose, Terraform >=1.10 and <2, and AWS CLI v2 are needed for the complete setup. Open Docker Desktop and wait until its engine is running if preflight reports Docker unavailable.
+The original scanner smoke script uses the standard library. The new local job API and its foundation tests require the pinned root Express dependency; install it with npm ci --ignore-scripts. Use Node.js 24.x. Git, npm, Docker Desktop with Compose, Terraform >=1.10 and <2, and AWS CLI v2 are needed for the complete setup. Open Docker Desktop and wait until its engine is running if preflight reports Docker unavailable.
 
 ## 2. Start the local scanner
 
@@ -32,13 +33,25 @@ Docker downloads a base image and installs the supplied scanner dependencies ins
 
 If port 3000 is occupied, use `SAST_PORT=3100 npm run local:up` and `SAST_PORT=3100 npm run test:http` in the same way. The Node HTTP smoke test does not automatically read .env; pass SAST_PORT explicitly when overriding it.
 
+## Local job API milestone
+
+The new local-only Express API and embedded dummy worker provide submit/status/expiring-report examples on port 3100. Run `npm run api:dev`, then `npm run api:demo` in another terminal. Use `npm run api:demo -- high` and `npm run api:demo -- error` for simulated outcomes. See docs/LOCAL_API.md. This is a development mock; every result has mergeAllowed=false. It does not replace the original scanner or satisfy the cloud handoff. Foundation changes are on the local foundation/local-api branch for review.
+
+## AWS storage development milestone
+
+Real S3, DynamoDB and SQS resources are now deployed and tested; the API and dummy worker still run on your laptop. With a valid Learner Lab session, run `export AWS_PROFILE=cs6620-lab`, then `npm run cloud:smoke` for an automatic synthetic end-to-end check. See docs/CLOUD_FOUNDATION.md for the separate API/worker/client terminals and cost/retention details. Do not infer real security approval from dummy results.
+
+## Shared HTTPS hosting milestone
+
+The first verified deployment used https://b0dx4i7jcl.execute-api.us-east-1.amazonaws.com for the dummy API and worker. That address may be unavailable after teardown; get the current address from terraform -chdir=infra/app output -raw endpoint after applying. Read docs/HOSTING.md before using or shutting it down: it incurs hourly network/compute costs until app teardown. Run `npm run hosting:demo` with the owner profile, or set SCANNER_URL and the privately supplied SCANNER_TOKEN for a client that needs no AWS credentials. Raw owner token is in ignored .local/deployment-service-token. No dummy result permits a merge.
+
 ## 3. What Aditya needs to supply
 
 1. Start the AWS Academy Learner Lab and configure its temporary credentials, including the session token, in a local AWS CLI profile named `cs6620-lab`. See docs/AWS_SETUP.md. Do not paste credentials into chat or the repository.
 2. Confirm the lab region, available credit, existing instance profile, EC2 types and service permissions using docs/FEASIBILITY.md. A successful identity check alone is insufficient.
-3. The team GitHub remote is configured. Confirm all three members have access; no project changes have been committed or pushed. See docs/GIT_SETUP.md.
-4. The proposed domain-free HTTPS entry point is an API Gateway default URL connected through a VPC link to an internal load balancer. No owned domain is currently required for that design. Creation permissions and total cost still need verification before deployment.
-5. The project state bucket and remote backend are already working. Read infra/README.md for the lab restriction, recovery and fresh-account instructions. Do not recreate the existing bucket or reuse archived plans. Application infrastructure remains unbuilt and requires permission/cost checks.
+3. The team GitHub remote is configured. Confirm all three members have access; the initial setup was pushed, and the working foundation is on foundation/local-api. See docs/GIT_SETUP.md.
+4. The proposed domain-free HTTPS entry point is an API Gateway default URL connected through a VPC link to an internal load balancer. No owned domain is currently required for that design. Creation permissions were demonstrated by deployment; see docs/HOSTING.md for cost estimates and validation.
+5. The project state bucket and remote backend are already working. Read infra/README.md for the lab restriction, recovery and fresh-account instructions. Do not recreate the existing bucket or reuse archived plans. Application infrastructure is implemented separately in infra/app; review the plan and cost before each deployment.
 
 ## 4. Continue in this order
 
@@ -47,7 +60,7 @@ Read docs/IMPLEMENTATION_PLAN.md. Aditya resolves feasibility and builds the com
 ## References
 
 - README.md: original assignment requirements
-- docs/proposal/: previous team-split proposal PPTX and PDF. These copies predate the proposed API Gateway entry-point change; use docs/IMPLEMENTATION_PLAN.md for that current proposed infrastructure direction.
+- docs/proposal/: previous team-split proposal PPTX and PDF. These copies predate the proposed API Gateway entry-point change; use docs/HOSTING.md for the implemented infrastructure and docs/IMPLEMENTATION_PLAN.md for ownership.
 - docs/FEASIBILITY.md: lab and cost gates
 - docs/SETUP_STATUS.md: what was checked on this machine
 - docs/GIT_SETUP.md: team repository setup
