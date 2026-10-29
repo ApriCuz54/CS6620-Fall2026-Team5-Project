@@ -1,0 +1,9 @@
+# One-shot SAST scanner image: reads a job from stdin, prints one JSON result, exits.
+FROM node:24-bookworm-slim
+WORKDIR /app
+# The supplied engine has no npm dependencies; package.json marks it as an ES module.
+COPY sast/backend/package.json sast/backend/scanner.js sast/backend/
+COPY services/scanner/runner.mjs services/scanner/
+# Run as the image's built-in non-root user.
+USER node
+ENTRYPOINT ["node", "services/scanner/runner.mjs"]
