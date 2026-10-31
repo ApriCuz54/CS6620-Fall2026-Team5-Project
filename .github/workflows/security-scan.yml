@@ -1,0 +1,28 @@
+name: Security Scan
+
+on:
+   pull_request:
+      types: [opened, synchronize, reopened]
+
+jobs:
+   scan:
+      name: security-gate
+      runs-on: ubuntu-latest
+      steps:
+         - uses: actions/checkout@v4
+           with:
+              fetch-depth: 0
+
+         - uses: actions/setup-node@v4
+           with:
+              node-version: 24
+
+         - name: Scan pull request
+           env:
+              SCANNER_URL: ${{ secrets.SCANNER_URL }}
+              SCANNER_TOKEN: ${{ secrets.SCANNER_TOKEN }}
+              REPOSITORY: ${{ github.repository }}
+              PR_NUMBER: ${{ github.event.pull_request.number }}
+              BASE_SHA: ${{ github.event.pull_request.base.sha }}
+              HEAD_SHA: ${{ github.event.pull_request.head.sha }}
+           run: node scripts/github-client.mjs
