@@ -4,6 +4,13 @@ on:
    pull_request:
       types: [opened, synchronize, reopened]
 
+permissions:
+   contents: read
+
+concurrency:
+   group: security-scan-${{ github.event.pull_request.number }}
+   cancel-in-progress: true
+
 jobs:
    scan:
       name: security-gate
