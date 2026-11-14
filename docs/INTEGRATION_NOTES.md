@@ -1,6 +1,6 @@
 # Integration notes (November 14, 2026)
 
-Branch `integration/real-gate` = `foundation/local-api` + `feature/real-sast-worker` (Chengyuan) + `feature/github-workflow` (Arvind) + the integration work below. It replaces the dummy pipeline with the real scanner end to end. Read `contracts/README.md` for the new API and `docs/TEST_WINDOW.md` for deploying it.
+Branch `integration/real-gate` = `foundation/local-api` + `feature/real-sast-worker` (Chengyuan) + `feature/github-workflow` (Arvind) + the integration work below. It replaces the dummy pipeline with the real scanner end to end. Read `contracts/README.md` for the new API and `docs/TEST_WINDOW.md` for deploying it. It was deployed and tested on AWS on November 14: see [TEST_RESULTS_2026-11-14.md](TEST_RESULTS_2026-11-14.md). Per-person next steps: [handoffs/ARVIND_NEXT.md](handoffs/ARVIND_NEXT.md), [handoffs/CHENGYUAN_NEXT.md](handoffs/CHENGYUAN_NEXT.md); those supersede the "For Arvind" and "For Chengyuan" lists below.
 
 ## What changed
 
@@ -40,17 +40,17 @@ Your runner and launcher are used unchanged except for `--pull never` (and its t
 
 | Case | Status |
 |---|---|
-| 01 vulnerable fails · 02 corrected passes · 03 MEDIUM-only passes · 07 no JS | Automated tests + local e2e. Live demo pending. |
+| 01 vulnerable fails · 02 corrected passes · 03 MEDIUM-only passes · 07 no JS | Automated tests + local e2e. 01, 02 and 07 passed on AWS through the gate client (Nov 14). Live GitHub Actions demo pending. |
 | 04–06 approved / invalid / expired exceptions | Not implemented (no allowlist yet). |
 | 08 oversized/malformed | API 400/413 tests; client lists unscannable files explicitly. |
 | 09 missing token / wrong repo | 401 tested. Wrong repository returns 400, not the 403 the proposal lists. |
 | 10 sandbox deadline/memory | Launcher Docker tests (run on a Docker machine); worker maps to FAILED (tested). |
-| 11 API node fails | Earlier dummy-app outage test passed; re-run `hosting:failover` with real worker. |
-| 12 worker dies mid-scan | Lease/visibility mechanics tested with fakes; live drill pending. |
+| 11 API node fails | `hosting:failover` passed with the real worker (Nov 14). Actual instance termination not tested. |
+| 12 worker dies mid-scan | Lease/visibility mechanics tested with fakes. On AWS, a job submitted with all workers stopped stayed QUEUED and completed after restart (Nov 14). Mid-scan kill drill pending. |
 | 13 duplicate message / POST | Tested locally and in `cloud:smoke`. |
-| 14 several PRs · 15 repeated pushes | Per-PR concurrency + SHA binding in place; live run pending. |
+| 14 several PRs · 15 repeated pushes | 14 passed on AWS: 8 PRs at once, all correct in 3–5 s (Nov 14). 15 in place (per-PR concurrency + SHA binding); live run pending. |
 | 16 429/503 | Client retry tests. |
 | 17 S3/DynamoDB commit fails | Conditional commit + lease fencing tested with fakes. |
-| 18 expired report URL | Local API tests; refresh workflow not built (Arvind 1). |
+| 18 expired report URL | On AWS, the old link was refused after 60 s and a fresh status call issued a working link (Nov 14). Refresh workflow not built (Arvind). |
 | 19 token rotation | Verifier overlap tests; rotation drill pending (`hosting:token -- --rotate`). |
 | 20 concurrent Terraform apply | S3 native lockfile configured; not drilled. |
