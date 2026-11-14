@@ -16,6 +16,13 @@ variable "image_uri" {
     error_message = "Use the immutable digest of the project ECR image in us-east-1."
   }
 }
+variable "scanner_image_uri" {
+  type = string
+  validation {
+    condition     = can(regex("^[0-9]{12}\\.dkr\\.ecr\\.us-east-1\\.amazonaws\\.com/cs6620-team5-runtime@sha256:[a-f0-9]{64}$", var.scanner_image_uri))
+    error_message = "Use the immutable digest of the one-shot scanner image in the project ECR repository."
+  }
+}
 variable "instance_type" {
   type    = string
   default = "t3.micro"
@@ -234,6 +241,7 @@ resource "aws_launch_template" "node" {
   }
   user_data = base64encode(templatefile("${path.module}/user-data.sh.tftpl", {
     image_uri         = var.image_uri
+    scanner_image_uri = var.scanner_image_uri
     registry          = split("/", var.image_uri)[0]
     connection_base64 = base64encode(jsonencode(data.terraform_remote_state.storage.outputs.connection))
     token_parameter   = local.token_parameter

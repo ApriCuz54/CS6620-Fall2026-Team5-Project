@@ -2,12 +2,14 @@ import test from 'node:test';
 import assert from 'node:assert/strict';
 import { Readable } from 'node:stream';
 import { createCloudStore, readJsonBody } from '../services/cloud/store.mjs';
-import { createCloudDummyWorker } from '../services/cloud/worker.mjs';
+import { createCloudWorker } from '../services/cloud/worker.mjs';
+import { createScanner } from '../services/scanner/scan.mjs';
+const scanner=createScanner({isolation:'in-process'});
 import { validateSubmission } from '../services/gate/contract.mjs';
 
 const config={accountId:'123456789012',region:'us-east-1',tableName:'test-jobs',queueUrl:'https://example.test/queue',inputBucket:'test-inputs',reportBucket:'test-reports'};
 const repository='ApriCuz54/CS6620-Fall2026-Team5-Project';
-const checked=overrides=>validateSubmission({schemaVersion:'1',repository,pullRequest:1,commitSha:'d'.repeat(40),simulation:'clean',files:[{path:'a.js',content:'DO_NOT_LEAK_SOURCE'}],...overrides},repository);
+const checked=overrides=>validateSubmission({schemaVersion:'2',repository,pullRequest:1,commitSha:'d'.repeat(40),files:[{path:'a.js',content:'DO_NOT_LEAK_SOURCE'}],...overrides},repository);
 const conditional=()=>Object.assign(new Error('conditional'),{name:'ConditionalCheckFailedException'});
 function fakeCloud({failSend=false,ambiguousPut=false,failAcknowledge=false}={}) {
   const rows=new Map();const objects=new Map();const sends=[];const deletes=[];
@@ -81,16 +83,16 @@ test('cloud worker acknowledges terminal duplicates without executing or publish
  const commands=[];let claimed=false;
  const id='a'.repeat(64);const generation='12345678-1234-1234-1234-123456789012';
  const sqs={async send(command){commands.push(command.constructor.name);return command.constructor.name==='ReceiveMessageCommand'?{Messages:[{Body:JSON.stringify({schemaVersion:'1',jobId:id,generation}),ReceiptHandle:'receipt'}]}:{};}};
- const worker=createCloudDummyWorker({config,sqs,db:{async send(){claimed=true;}},store:{async get(){return{id,generation,status:'COMPLETED'};}},allowedRepository:repository});
+ const worker=createCloudWorker({config,scanner,sqs,db:{async send(){claimed=true;}},store:{async get(){return{id,generation,status:'COMPLETED'};}},allowedRepository:repository});
  assert.equal((await worker.consumeOnce()).kind,'obsolete-or-terminal');assert.equal(claimed,false);assert.ok(commands.includes('DeleteMessageCommand'));
 });
 
 test('a stale lease cannot finalize or acknowledge a worker result',async()=>{
  const body=checked();const id='b'.repeat(64);const generation='12345678-1234-1234-1234-123456789012';const commands=[];
- const job={id,generation,status:'QUEUED',simulation:'clean',repository:body.canonical.repository,pullRequest:1,commitSha:body.canonical.commitSha,digest:body.digest};
+ const job={id,generation,status:'QUEUED',repository:body.canonical.repository,pullRequest:1,commitSha:body.canonical.commitSha,digest:body.digest};
  const sqs={async send(command){commands.push(command.constructor.name);return command.constructor.name==='ReceiveMessageCommand'?{Messages:[{Body:JSON.stringify({schemaVersion:'1',jobId:id,generation}),ReceiptHandle:'receipt'}]}:{};}};
  let calls=0;const db={async send(command){calls++;if(calls===1)return{Attributes:{...job,status:'RUNNING',attempts:1}};assert.ok(command.input.ConditionExpression.includes('leaseToken = :owner'));throw conditional();}};
- const worker=createCloudDummyWorker({config,sqs,db,allowedRepository:repository,store:{async get(){return job;},async readSource(){return body.canonical;},async putReport(){return'orphan-report';},async deleteSource(){throw new Error('Must not remove source after losing claim');}}});
+ const worker=createCloudWorker({config,scanner,sqs,db,allowedRepository:repository,store:{async get(){return job;},async readSource(){return body.canonical;},async putReport(){return'orphan-report';},async deleteSource(){throw new Error('Must not remove source after losing claim');}}});
  assert.equal((await worker.consumeOnce()).kind,'lease-lost');assert.equal(commands.includes('DeleteMessageCommand'),false);
 });
 
@@ -109,4 +111,39 @@ test('expired pending jobs leave the outbox index before asynchronous TTL deleti
  const row=[...h.rows.values()][0];row.expiresAt=1;
  h.state.failSend=false;assert.equal(await h.store.flushOutbox(),0);
  assert.equal(row.dispatchKey,undefined);assert.equal(h.sends.length,0);
+});
+
+function workerHarness({scan}={}){
+ const body=checked({files:[{path:'a.js',content:'const password = "DO_NOT_LEAK_SOURCE";'}]});const id='c'.repeat(64);const generation='12345678-1234-1234-1234-123456789012';
+ const job={id,generation,status:'QUEUED',repository:body.canonical.repository,pullRequest:1,commitSha:body.canonical.commitSha,digest:body.digest};
+ const commands=[];const updates=[];const reports=[];
+ const sqs={async send(command){commands.push(command.constructor.name);return command.constructor.name==='ReceiveMessageCommand'?{Messages:[{Body:JSON.stringify({schemaVersion:'1',jobId:id,generation}),ReceiptHandle:'receipt'}]}:{};}};
+ const db={async send(command){updates.push(command.input);return updates.length===1?{Attributes:{...job,status:'RUNNING',attempts:1}}:{};}};
+ const store={async get(){return job;},async readSource(){return body.canonical;},async putReport(j,lease,report){reports.push(report);return`reports/${id}/${generation}/${lease}.json`;},async deleteSource(){return true;}};
+ const worker=createCloudWorker({config,sqs,db,store,allowedRepository:repository,scanner:scan?{isolation:'test',scan}:scanner});
+ return {worker,commands,updates,reports};
+}
+
+test('cloud worker commits a real FAIL verdict and report for a vulnerable job, then acknowledges',async()=>{
+ const h=workerHarness();
+ assert.equal((await h.worker.consumeOnce()).kind,'completed');
+ const final=h.updates.at(-1);const values=Object.values(final.ExpressionAttributeValues);
+ assert.ok(values.includes('COMPLETED'));assert.ok(values.includes('FAIL'));
+ assert.ok(values.some(v=>v?.high===1));assert.ok(values.some(v=>v?.policyVersion==='high-blocks-v1'));
+ assert.equal(h.reports[0].verdict,'FAIL');assert.equal(JSON.stringify(h.reports).includes('DO_NOT_LEAK_SOURCE'),false);
+ assert.ok(h.commands.includes('DeleteMessageCommand'));
+});
+
+test('a scan container that cannot start is retried, not recorded as a result',async()=>{
+ const h=workerHarness({scan:async()=>({status:'ERROR',error:{code:'LAUNCH_FAILED'}})});
+ assert.equal((await h.worker.consumeOnce()).kind,'retry');
+ assert.equal(h.updates.length,1,'only the claim was written');assert.equal(h.commands.includes('DeleteMessageCommand'),false);
+});
+
+test('a scan timeout is a terminal FAILED/ERROR result with no report',async()=>{
+ const h=workerHarness({scan:async()=>({status:'ERROR',error:{code:'TIMEOUT'}})});
+ assert.equal((await h.worker.consumeOnce()).kind,'failed');
+ const values=Object.values(h.updates.at(-1).ExpressionAttributeValues);
+ assert.ok(values.includes('FAILED'));assert.ok(values.includes('ERROR'));assert.ok(values.some(v=>v?.code==='TIMEOUT'));
+ assert.equal(h.reports.length,0);
 });

@@ -1,5 +1,7 @@
 # Handoff for Arvind Dharmesh Parekh
 
+> **Superseded in part (November 14, 2026):** this component is now integrated on `integration/real-gate`. See [../INTEGRATION_NOTES.md](../INTEGRATION_NOTES.md) for what changed and your remaining tasks.
+
 Prepared October 25, 2026. Your component: GitHub workflow and scanner client.
 
 ## Your goal in simple words

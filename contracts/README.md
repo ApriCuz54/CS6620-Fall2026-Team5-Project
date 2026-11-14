@@ -1,45 +1,57 @@
-# Job API v1 — local dummy adapter, not a production worker contract
+# Job API — contract v2 (real scanner results)
+
+Version 2 replaces the dummy v1 contract. Requests and responses use `schemaVersion: "2"`; routes stay under `/v1/`. Version 1 requests (including any `simulation` field) are rejected with 400. Callers can no longer choose an outcome: every verdict comes from the supplied SAST engine run by the worker.
 
 ## Submit
 
-POST /v1/jobs, application/json, Authorization: Bearer <service-token>.
-All six fields in examples/submit-clean.json are required; unknown fields are rejected.
+`POST /v1/jobs`, `Content-Type: application/json`, `Authorization: Bearer <service-token>`. Exactly these fields; unknown fields are rejected:
 
-- schemaVersion: string "1".
-- repository: the one configured owner/repository (case insensitive).
-- pullRequest: positive integer.
-- commitSha: exact 40-hex commit SHA, not a branch name.
-- simulation: clean, high or error. This field exists only in the dummy contract.
-- files: nonempty bounded list of path/content objects. Limits: 25 files, 64 KiB per file, 128 KiB combined, 256 KiB HTTP body. JS/MJS/CJS only; relative ASCII paths with no traversal or backslashes, at most 200 characters; unique paths.
+| Field | Rule |
+|---|---|
+| `schemaVersion` | `"2"` |
+| `repository` | the one configured `owner/repository` (case-insensitive) |
+| `pullRequest` | positive integer |
+| `commitSha` | exact 40-hex commit SHA, not a branch name |
+| `files` | 0–25 `{path, content}` objects; 64 KiB per file, 128 KiB combined, 256 KiB body. JS/MJS/CJS only; relative ASCII paths (`A-Z a-z 0-9 _ . -` and `/`), no traversal, no backslashes, at most 200 characters, unique. |
 
-A new job returns 202 with Location and statusUrl. An identical normalized repository/PR/SHA payload returns 200 and reused=true with the same jobId. Case and file ordering are normalized. Changed content, filenames or simulation for the same identity returns 409. Different commits create independent jobs; this milestone does not cancel superseded jobs.
+An empty `files` list is valid: it records an explicit, complete zero-file scan for a commit that changes no JavaScript (acceptance case 07).
+
+A new job returns `202` with `Location` and `statusUrl`. An identical normalized repository/PR/SHA payload returns `200`, `reused: true` and the same `jobId`. Case and file order are normalized. Different content for the same repository/PR/SHA returns `409`. Different commits create independent jobs.
 
 ## Poll
 
-GET /v1/jobs/:jobId, same bearer header. Returns 200 and schemaVersion, jobId, repository, pullRequest, commitSha, status, createdAt, updatedAt and statusUrl. States: QUEUED → RUNNING → COMPLETED or FAILED. On local recovery RUNNING can return to QUEUED. Failed jobs contain a sanitized error and no report. Unknown/expired jobs return 404.
+`GET /v1/jobs/:jobId` with the same bearer header. Response fields:
 
-Every response describing a job or error explicitly sets mode="dummy", gate="NOT_EVALUATED", mergeAllowed=false. A completed simulated clean report is NOT a passing security result.
+| Field | Meaning |
+|---|---|
+| `status` | `QUEUED` → `RUNNING` → `COMPLETED` or `FAILED`. Recovery can move `RUNNING` back to `QUEUED`. |
+| `verdict` | `PENDING` while queued/running; `PASS` or `FAIL` when completed; `ERROR` when failed. |
+| `mergeAllowed` | `true` only when `status=COMPLETED`, `verdict=PASS` and `scanner.policyVersion` is the supported policy. |
+| `repository`, `pullRequest`, `commitSha` | the job identity; clients must check it matches what they submitted. |
+| `scanner` | completed only: `{engine:"cs6620-sast", version, policyVersion:"high-blocks-v1", isolation}`. Deployed workers always report `isolation:"container"`. |
+| `filesScanned` | completed only: must equal the number of files submitted. |
+| `summary` | completed only: `{high, medium, low}` counts. |
+| `report` | completed only: `{url, expiresAt}` private link (see below). |
+| `error` | failed only: `{code, message}` with fixed text. |
 
-Completed jobs include summary={high,medium,low} and report={url,expiresAt}. The URL is relative locally; clients should resolve it against the configured service base. The AWS-storage development adapter now returns an absolute, 60-second S3 URL; see CLOUD_WORKER.md for its draft worker/storage contract. Do not assume a URL stays valid indefinitely.
+### Policy `high-blocks-v1`
+
+A complete, validated scan with **any HIGH finding → `FAIL`**. No HIGH → `PASS`; MEDIUM and LOW stay visible in the summary and report but do not block. Timeout, out-of-memory, crash, invalid or oversized scanner output, a file-count mismatch, findings for unsubmitted paths, lost leases and retry exhaustion are all `FAILED` / `ERROR` and never pass. Approved exceptions (acceptance cases 04–06) are not implemented in this version.
+
+Failed-job error codes: `TIMEOUT`, `OUT_OF_MEMORY`, `CRASHED`, `OUTPUT_TOO_LARGE`, `BAD_RUNNER_OUTPUT`, `INPUT_TOO_LARGE`, `INVALID_INPUT`, `INCOMPLETE_SCAN`, `JOB_DEADLINE_EXCEEDED`, `WORKER_RETRY_EXHAUSTED`, `SCAN_FAILED`.
 
 ## Report
 
-GET the returned report.url without a service header. Its signature grants access only to the named job and expires after 60 seconds. Missing/modified/expired signatures return 403. Reports contain job identity, mode/gate/mergeAllowed, summary and findings. Findings have ruleId, severity, path, line and message; no source/evidence fields. Dummy HIGH findings use ruleId DUMMY_HIGH. These are synthetic, not the supplied scanner's findings.
+GET `report.url` **without** the service header. Locally it is a relative HMAC-signed link; on AWS it is an absolute S3 presigned URL. Both expire after about 60 seconds; poll the status endpoint again for a fresh link. Never log the URL.
 
-## Error shape and behavior
+Report body: `schemaVersion, jobId, repository, pullRequest, commitSha, scanner, verdict, mergeAllowed, filesScanned, summary, findings, completedAt`. Each finding has exactly `ruleId, severity, path, line, message`; `message` is the scanner's fixed rule name. No source text, snippets or evidence are ever stored in a report.
 
-JSON shape: {schemaVersion:"1",mode:"dummy",gate:"NOT_EVALUATED",mergeAllowed:false,error:{code,message}}.
+## Errors
 
-- 400: invalid JSON/schema/input.
-- 401: missing/incorrect bearer token on protected routes.
-- 403: invalid/expired report capability.
-- 404: unknown endpoint/job or expired job.
-- 409: conflicting payload or unavailable report.
-- 413: request body exceeds limit.
-- 415: unsupported Content-Type.
-- 503: local capacity exhausted, Retry-After: 2.
-- 500: unexpected internal failure, without internal details or source.
+Shape: `{schemaVersion:"2", verdict:"ERROR", mergeAllowed:false, error:{code, message}}`.
 
-Never interpret HTTP success, completed status or zero HIGH count alone as merge approval. Production schema must explicitly require a real scanner result, exact repository/PR/SHA match and a reviewed PASS verdict. Do not enable a real required GitHub check against dummy mode.
+- 400 invalid JSON/schema/input · 401 missing/incorrect token · 403 invalid/expired report link · 404 unknown endpoint/job or expired job · 409 conflicting payload or report not ready · 413 body too large · 415 wrong Content-Type · 503 capacity or cloud temporarily unavailable (`Retry-After`) · 500 unexpected internal failure (no internal details).
 
-The draft AWS-storage envelope, dispatch and lease behavior is documented in CLOUD_WORKER.md and implemented for dummy jobs. Scanner policy versioning, cancellation, production report sanitation and real-worker acceptance remain to be reviewed with Chengyuan/Arvind before handoff.
+Clients retry only network errors, 429 and 500/502/503/504, with the identical request. A non-2xx response, a non-terminal status, an identity mismatch, an unsupported policy version or a `filesScanned` mismatch must never be treated as a pass.
+
+See `CLOUD_WORKER.md` for the queue, lease and storage mechanics behind this API.

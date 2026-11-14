@@ -1,0 +1,4 @@
+{
+  "excludeDirectories": ["node_modules"],
+  "excludePaths": []
+}

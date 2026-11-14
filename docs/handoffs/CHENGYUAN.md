@@ -1,5 +1,7 @@
 # Handoff for Chengyuan Sun
 
+> **Superseded in part (November 14, 2026):** this component is now integrated on `integration/real-gate`. See [../INTEGRATION_NOTES.md](../INTEGRATION_NOTES.md) for what changed and your remaining tasks.
+
 Prepared October 25, 2026. Your component: real SAST worker and per-scan isolation.
 
 ## Your goal in simple words

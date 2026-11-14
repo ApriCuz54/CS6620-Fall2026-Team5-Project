@@ -2,6 +2,8 @@
 
 Team: Aditya Chatterjee, Arvind Dharmesh Parekh, Chengyuan Sun.
 
+> **Update, November 14, 2026.** The dummy pipeline has been replaced by the real scanner end to end on branch `integration/real-gate`. Start with [docs/INTEGRATION_NOTES.md](docs/INTEGRATION_NOTES.md) (what changed, who owns what next, acceptance status), [contracts/README.md](contracts/README.md) (API contract v2) and [docs/TEST_WINDOW.md](docs/TEST_WINDOW.md) (deploy and demo runbook). Quick local check: `npm ci --ignore-scripts && npm test && npm run e2e:local`. Sections below that describe dummy results, `simulation` or `mergeAllowed=false` are historical.
+
 ## What is ready
 
 A fresh clone of the course repository, the original SAST and pentest code, a local Docker scanner configuration, repeatable setup/smoke checks, a working encrypted/versioned S3 Terraform state backend with a documented Learner Lab bootstrap exception, setup and handoff checklists, and our updated proposal. The original course README is unchanged.

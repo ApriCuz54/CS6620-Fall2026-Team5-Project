@@ -25,8 +25,7 @@ const timer = setInterval(() => {
   active = cloud.store.flushOutbox().catch(() => console.error('Pending dispatch retry failed; accepted jobs remain recorded.')).finally(() => { busy = false; });
 }, 5000);
 const server = app.listen(port, deployed ? '0.0.0.0' : '127.0.0.1', () => {
-  console.log(deployed ? 'Deployed dummy API ready; verifier loaded from SSM.' : `Local API using AWS storage: http://127.0.0.1:${port}`);
-  console.log('Dummy results only; merge approval is prohibited.');
+  console.log(deployed ? 'Deployed API ready; verifier loaded from SSM.' : `Local API using AWS storage: http://127.0.0.1:${port}`);
 });
 async function shutdown(code = 0) {
   if (stopping) return; stopping = true; clearInterval(timer);

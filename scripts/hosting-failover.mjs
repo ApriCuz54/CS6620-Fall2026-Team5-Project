@@ -35,7 +35,7 @@ try{
  console.log('One project application node is unavailable; the other remains healthy. Running the HTTPS checks.');
  const smoke=spawnSync(process.execPath,['scripts/hosting-smoke.mjs'],{cwd:root,env:process.env,stdio:'inherit',timeout:180000});
  if(smoke.status!==0)throw new Error('Single-node HTTPS checks failed.');
- console.log('PASS: one remaining node served the authenticated dummy job/report flow.');
+ console.log('PASS: one remaining node served the authenticated job/report flow.');
 }finally{
  try{
   if(stopped){await command(['docker start cs6620-api cs6620-worker']);await health(xs=>xs.filter(x=>x.TargetHealth.State==='healthy').length===2);console.log('Both project application nodes are healthy again.');}

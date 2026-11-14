@@ -42,7 +42,7 @@ npm run hosting:smoke
 npm run hosting:demo
 ```
 
-The app maximum capacity is two; rolling refresh replaces one node at a time. API containers dispatch accepted pending jobs from the shared index, so a node failure does not lose accepted state. Worker claims/lease fencing are backed by DynamoDB. No result in this deployment can approve a merge: mode=dummy, gate=NOT_EVALUATED, mergeAllowed=false. Real sandbox integration and GitHub checks remain separate work.
+The app maximum capacity is two; rolling refresh replaces one node at a time. API containers dispatch accepted pending jobs from the shared index, so a node failure does not lose accepted state. Worker claims/lease fencing are backed by DynamoDB. Since contract v2 each node also runs the real scanner: the worker launches one digest-pinned, no-network scan container per job, and completed jobs carry a real PASS/FAIL verdict. See docs/TEST_WINDOW.md for the current deploy-and-demo runbook.
 
 ## Teammate calls without AWS credentials
 

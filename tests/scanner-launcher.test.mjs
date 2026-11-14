@@ -30,7 +30,7 @@ test('docker args include every isolation limit', () => {
   const a = buildDockerArgs('sast-scan-test').join(' ');
   for (const flag of [
     '--network none', '--cpus 0.5', '--memory 256m', '--memory-swap 256m', '--pids-limit 64',
-    '--read-only', '--cap-drop ALL', '--security-opt no-new-privileges', '--user 1000:1000',
+    '--read-only', '--cap-drop ALL', '--security-opt no-new-privileges', '--user 1000:1000', '--pull never',
   ]) assert.ok(a.includes(flag), `missing ${flag}`);
   assert.ok(a.includes('size=16m'));
   // Nothing sensitive is passed into the container.

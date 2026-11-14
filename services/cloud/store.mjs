@@ -33,7 +33,7 @@ export function createCloudStore({ config, db, s3, sqs, signReport, now = Date.n
     if (!job || job.expiresAt <= Math.floor(now() / 1000)) return undefined;
     if (['QUEUED', 'RUNNING'].includes(job.status) && job.deadlineAt <= now()) {
       try {
-        const r = await db.send(new UpdateCommand({ TableName: table, Key: key(id), ConditionExpression: '#g = :g AND (#s = :q OR #s = :r) AND deadlineAt <= :now', UpdateExpression: 'SET #s = :failed, #err = :err, updatedAt = :date REMOVE dispatchKey, dispatchAfter, leaseToken, leaseUntil', ExpressionAttributeNames: { '#g': 'generation', '#s': 'status', '#err': 'error' }, ExpressionAttributeValues: { ':g': job.generation, ':q': 'QUEUED', ':r': 'RUNNING', ':failed': 'FAILED', ':now': now(), ':date': new Date(now()).toISOString(), ':err': { code: 'JOB_DEADLINE_EXCEEDED', message: 'Job did not complete within its development deadline.' } }, ReturnValues: 'ALL_NEW' }));
+        const r = await db.send(new UpdateCommand({ TableName: table, Key: key(id), ConditionExpression: '#g = :g AND (#s = :q OR #s = :r) AND deadlineAt <= :now', UpdateExpression: 'SET #s = :failed, #err = :err, updatedAt = :date REMOVE dispatchKey, dispatchAfter, leaseToken, leaseUntil', ExpressionAttributeNames: { '#g': 'generation', '#s': 'status', '#err': 'error' }, ExpressionAttributeValues: { ':g': job.generation, ':q': 'QUEUED', ':r': 'RUNNING', ':failed': 'FAILED', ':now': now(), ':date': new Date(now()).toISOString(), ':err': { code: 'JOB_DEADLINE_EXCEEDED', message: 'Job did not complete within its deadline.' } }, ReturnValues: 'ALL_NEW' }));
         job = r.Attributes;
       } catch (error) { if (!isConditionalFailure(error)) throw error; job = await raw(id); }
       if (job && ['COMPLETED','FAILED'].includes(job.status)) await deleteSource(job);
@@ -69,7 +69,7 @@ export function createCloudStore({ config, db, s3, sqs, signReport, now = Date.n
       const existing = await get(id);
       if (existing) return existingResult(existing, digest);
       const generation = randomUUID(); const createdAt = new Date(now()).toISOString();
-      const job = { ...key(id), id, generation, digest, repository: canonical.repository, pullRequest: canonical.pullRequest, commitSha: canonical.commitSha, simulation: canonical.simulation, status: 'QUEUED', mode: 'dummy', sourceKey: `sources/${id}/${generation}.json`, createdAt, updatedAt: createdAt, deadlineAt: now() + 15 * 60 * 1000, expiresAt: Math.floor(now()/1000) + 86400, dispatchKey: 'PENDING', dispatchAfter: now() };
+      const job = { ...key(id), id, generation, digest, repository: canonical.repository, pullRequest: canonical.pullRequest, commitSha: canonical.commitSha, fileCount: canonical.files.length, status: 'QUEUED', sourceKey: `sources/${id}/${generation}.json`, createdAt, updatedAt: createdAt, deadlineAt: now() + 15 * 60 * 1000, expiresAt: Math.floor(now()/1000) + 86400, dispatchKey: 'PENDING', dispatchAfter: now() };
       try {
         await s3.send(new PutObjectCommand({ Bucket: config.inputBucket, Key: job.sourceKey, Body: JSON.stringify(canonical), ContentType: 'application/json', ServerSideEncryption: 'AES256', ...owner }));
         await db.send(new PutCommand({ TableName: table, Item: job, ConditionExpression: 'attribute_not_exists(pk) OR expiresAt <= :now', ExpressionAttributeValues: { ':now': Math.floor(now()/1000) } }));

@@ -28,7 +28,9 @@
     "hosting:demo": "node --env-file-if-exists=.env scripts/hosting-demo.mjs",
     "hosting:smoke": "node scripts/hosting-smoke.mjs",
     "hosting:diagnostics": "node scripts/hosting-diagnostics.mjs",
-    "hosting:failover": "node scripts/hosting-failover.mjs"
+    "hosting:failover": "node scripts/hosting-failover.mjs",
+    "e2e:local": "node scripts/e2e-local.mjs",
+    "scanner:build": "docker build -f Dockerfile.scanner -t cs6620-scanner:dev ."
   },
   "dependencies": {
     "@aws-sdk/client-dynamodb": "3.1156.0",

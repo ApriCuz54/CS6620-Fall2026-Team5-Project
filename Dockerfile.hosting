@@ -1,4 +1,8 @@
+# Docker CLI only (no daemon), used by the trusted worker to launch scan containers.
+FROM docker:27-cli AS dockercli
+
 FROM node:24-bookworm-slim
+COPY --from=dockercli /usr/local/bin/docker /usr/local/bin/docker
 WORKDIR /app
 COPY package.json package-lock.json ./
 RUN npm ci --omit=dev --ignore-scripts && npm cache clean --force

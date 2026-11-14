@@ -37,6 +37,7 @@ export function buildDockerArgs(name, opts = {}) {
     '--security-opt', 'no-new-privileges',
     '--user', '1000:1000',                            // non-root
     '--log-driver', 'none',                           // keep no host-side copy of output
+    '--pull', 'never',                                // only the pre-pulled, digest-pinned image
   ];
   // Test-only hook: replace the program inside the container to simulate failures.
   if (o.entrypoint) args.push('--entrypoint', o.entrypoint);

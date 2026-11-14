@@ -7,14 +7,15 @@ const connection=JSON.parse(readFileSync(join(root,'.local/cloud-connection.json
 const image=JSON.parse(readFileSync(join(root,'.local/hosting-image.json'),'utf8'));
 const r=spawnSync('aws',['sts','get-caller-identity','--query','Account','--output','text'],{encoding:'utf8'});
 if(r.status!==0||r.stdout.trim()!==connection.accountId)throw new Error('Valid expected lab identity required.');
-if(!image.imageUri.startsWith(`${connection.accountId}.dkr.ecr.us-east-1.amazonaws.com/cs6620-team5-runtime@sha256:`))throw new Error('Unexpected image registry.');
+const registry=`${connection.accountId}.dkr.ecr.us-east-1.amazonaws.com/cs6620-team5-runtime@sha256:`;
+if(!image.imageUri?.startsWith(registry)||!image.scannerImageUri?.startsWith(registry))throw new Error('Unexpected or missing image; run npm run hosting:publish first.');
 const dir=join(root,'infra/app');mkdirSync(dir,{recursive:true});
 const file=join(dir,'terraform.tfvars');
 const index=process.argv.indexOf('--instance-type');
 const previous=existsSync(file)?readFileSync(file,'utf8').match(/instance_type\s*=\s*"([^"]+)"/)?.[1]:undefined;
 const type=index>=0?process.argv[index+1]:previous??'t3.micro';
 if(!['t3.micro','t3.small','t3.medium'].includes(type))throw new Error('Unreviewed instance type.');
-writeFileSync(file,`aws_account_id = "${connection.accountId}"\nimage_uri = "${image.imageUri}"\ninstance_type = "${type}"\n`,{mode:0o600});
+writeFileSync(file,`aws_account_id = "${connection.accountId}"\nimage_uri = "${image.imageUri}"\nscanner_image_uri = "${image.scannerImageUri}"\ninstance_type = "${type}"\n`,{mode:0o600});
 const backend=`bucket = "cs6620-team-state-${connection.accountId}-us-east-1"\nkey = "app/terraform.tfstate"\nregion = "us-east-1"\nencrypt = true\nuse_lockfile = true\n`;
 const backendFile=join(dir,'backend.hcl');
 if(existsSync(backendFile)&&readFileSync(backendFile,'utf8')!==backend)throw new Error('Backend already differs; inspect before changing.');

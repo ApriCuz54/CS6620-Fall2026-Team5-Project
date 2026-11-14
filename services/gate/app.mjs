@@ -1,6 +1,6 @@
 import express from 'express';
 import { createHash, createHmac, timingSafeEqual } from 'node:crypto';
-import { ApiError, LIMITS, validateSubmission } from './contract.mjs';
+import { ApiError, LIMITS, SCHEMA_VERSION, mergeAllowedFor, validateSubmission } from './contract.mjs';
 
 function hash(value) { return createHash('sha256').update(value).digest(); }
 export function createApp({ store, token, signingKey, allowedRepository, now = Date.now, reportTtlSeconds = 60, verifyToken, checkReady }) {
@@ -23,17 +23,20 @@ export function createApp({ store, token, signingKey, allowedRepository, now = D
   async function find(id) { const job = await store.get(id); if (!job) throw fail(404, 'JOB_NOT_FOUND', 'Job was not found or has expired.'); return job; }
   const signature = (id, expires) => createHmac('sha256', signingKey).update(`${id}:${expires}`).digest('hex');
   async function view(job) {
-    const result = { schemaVersion: '1', mode: 'dummy', gate: 'NOT_EVALUATED', mergeAllowed: false, jobId: job.id, repository: job.repository, pullRequest: job.pullRequest, commitSha: job.commitSha, status: job.status, createdAt: job.createdAt, updatedAt: job.updatedAt, statusUrl: `/v1/jobs/${job.id}` };
+    const verdict = job.status === 'COMPLETED' ? job.verdict : job.status === 'FAILED' ? 'ERROR' : 'PENDING';
+    const result = { schemaVersion: SCHEMA_VERSION, jobId: job.id, repository: job.repository, pullRequest: job.pullRequest, commitSha: job.commitSha, status: job.status, verdict, mergeAllowed: mergeAllowedFor(job), createdAt: job.createdAt, updatedAt: job.updatedAt, statusUrl: `/v1/jobs/${job.id}` };
     if (job.error) result.error = job.error;
     if (job.status === 'COMPLETED') {
       const expires = Math.floor(now() / 1000) + reportTtlSeconds;
-      result.summary = job.report?.summary ?? job.summary;
+      result.scanner = job.scanner;
+      result.filesScanned = job.filesScanned;
+      result.summary = job.summary;
       result.report = store.issueReportLink ? await store.issueReportLink(job) : { url: `/v1/jobs/${job.id}/report?expires=${expires}&signature=${signature(job.id, expires)}`, expiresAt: new Date(expires * 1000).toISOString() };
     }
     return result;
   }
-  app.get('/', (req, res) => res.json({ service: 'CS6620 development job API', backend: store.backend ?? 'local', mode: 'dummy', message: 'Development only. No result can approve a merge.', health: '/health' }));
-  app.get('/health', route(async (req, res) => { if (checkReady) await checkReady(); res.json({ status: 'healthy', backend: store.backend ?? 'local', mode: 'dummy', mergeAllowed: false }); }));
+  app.get('/', (req, res) => res.json({ service: 'CS6620 SAST gate job API', schemaVersion: SCHEMA_VERSION, backend: store.backend ?? 'local', health: '/health' }));
+  app.get('/health', route(async (req, res) => { if (checkReady) await checkReady(); res.json({ status: 'healthy', schemaVersion: SCHEMA_VERSION, backend: store.backend ?? 'local' }); }));
   app.post('/v1/jobs', requireToken, (req, res, next) => {
     if (!req.is('application/json')) return next(fail(415, 'CONTENT_TYPE', 'Use application/json.'));
     next();
@@ -57,7 +60,7 @@ export function createApp({ store, token, signingKey, allowedRepository, now = D
     const status = error instanceof ApiError ? error.status : error.type === 'entity.too.large' ? 413 : error.type === 'entity.parse.failed' ? 400 : 500;
     const code = error instanceof ApiError ? error.code : status === 413 ? 'BODY_TOO_LARGE' : status === 400 ? 'INVALID_JSON' : 'INTERNAL_ERROR';
     if (status === 503) res.set('Retry-After', '2');
-    res.status(status).json({ schemaVersion: '1', mode: 'dummy', gate: 'NOT_EVALUATED', mergeAllowed: false, error: { code, message: error instanceof ApiError ? error.message : status === 500 ? 'Local service could not complete the request.' : 'Invalid or oversized JSON request.' } });
+    res.status(status).json({ schemaVersion: SCHEMA_VERSION, verdict: 'ERROR', mergeAllowed: false, error: { code, message: error instanceof ApiError ? error.message : status === 500 ? 'Local service could not complete the request.' : 'Invalid or oversized JSON request.' } });
   });
   return app;
 }

@@ -3,6 +3,7 @@ import {spawnSync} from 'node:child_process';
 import {randomBytes} from 'node:crypto';
 import {setTimeout as wait} from 'node:timers/promises';
 import {fileURLToPath} from 'node:url';
+import {fixture} from './fixtures.mjs';
 const root=new URL('../',import.meta.url);
 const token=(process.env.SCANNER_TOKEN ?? await readFile(new URL('.local/deployment-service-token',root),'utf8')).trim();
 let base=process.env.SCANNER_URL?.trim().replace(/\/$/,'');
@@ -17,17 +18,17 @@ async function request(path,body,auth=true){
  if(!r.ok)throw new Error(`Request returned HTTP ${r.status}; no passing result inferred.`);
  return r.json();
 }
-const simulation=process.argv[2]??'clean';
-if(!['clean','high','error'].includes(simulation))throw new Error('Use clean, high or error.');
-const body={schemaVersion:'1',repository:'ApriCuz54/CS6620-Fall2026-Team5-Project',pullRequest:1,commitSha:randomBytes(20).toString('hex'),simulation,files:[{path:'src/hosting-demo.js',content:'export const example = 1;'}]};
-let job=await request('/v1/jobs',body);const deadline=Date.now()+60000;
+const name=process.argv[2]??'clean';const {files,verdict:expected}=fixture(name);
+const body={schemaVersion:'2',repository:'ApriCuz54/CS6620-Fall2026-Team5-Project',pullRequest:1,commitSha:randomBytes(20).toString('hex'),files};
+let job=await request('/v1/jobs',body);const deadline=Date.now()+5*60000;
 while(true){
- console.log(`${job.status}; mode=${job.mode}; mergeAllowed=${job.mergeAllowed}`);
+ console.log(`${job.status}; verdict=${job.verdict}; mergeAllowed=${job.mergeAllowed}`);
  if(['COMPLETED','FAILED'].includes(job.status))break;
  if(Date.now()>deadline)throw new Error('Polling deadline exceeded. No passing result inferred.');
  await wait(1000);job=await request(job.statusUrl);
 }
 if(job.status==='COMPLETED'){
  const report=await request(job.report.url,undefined,false);
- console.log(JSON.stringify({mode:report.mode,gate:report.gate,mergeAllowed:report.mergeAllowed,summary:report.summary},null,2));
-}else console.log('Simulated failure was returned explicitly.');
+ console.log(JSON.stringify({verdict:report.verdict,mergeAllowed:report.mergeAllowed,scanner:report.scanner,summary:report.summary,findings:report.findings},null,2));
+ if(report.verdict!==expected){console.error(`Expected ${expected} for the ${name} fixture.`);process.exitCode=1;}
+}else{console.error(`Scan failed: ${job.error?.code}`);process.exitCode=1;}
