@@ -47,8 +47,15 @@ test('never logs the report link', async () => {
   for (const line of lines) assert.ok(!line.includes('X-Amz-Signature') && !line.includes('s3.amazonaws.com'), line);
 });
 
+test('accepts cloud job IDs (64-character hex) as well as local UUIDs', async () => {
+  const cloudId = '7604df9e8ddd7202a8a06798ee42f98133e47144d2badcf0aaa2567651974a37';
+  const { fetchImpl, calls } = fakeFetch({ body: { ...job, jobId: cloudId }, reportBody: { ...report, jobId: cloudId } });
+  await refreshReportLink({ ...base, jobId: cloudId, fetchImpl });
+  assert.equal(calls[0].url, `${url}/v1/jobs/${cloudId}`);
+});
+
 test('rejects anything that is not a job ID before making a request', async () => {
-  for (const bad of ['', 'abc', '../../v1/jobs', `${jobId}/../x`, 'https://evil.example/x', undefined]) {
+  for (const bad of ['', 'abc', '../../v1/jobs', `${jobId}/../x`, 'https://evil.example/x', 'a'.repeat(63), 'g'.repeat(64), undefined]) {
     const { fetchImpl, calls } = fakeFetch();
     await assert.rejects(refreshReportLink({ ...base, jobId: bad, fetchImpl }), { code: 'BAD_JOB_ID' });
     assert.equal(calls.length, 0, String(bad));

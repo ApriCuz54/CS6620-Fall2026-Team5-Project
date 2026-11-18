@@ -10,9 +10,10 @@ import { setTimeout as delay } from 'node:timers/promises';
 import { fileURLToPath } from 'node:url';
 import { requestWithRetry, GateError, SCHEMA_VERSION, DEFAULTS } from './github-client.mjs';
 
-// The API issues random UUIDs; checking the shape first means a typo or a pasted URL
-// never turns into a request to some other path on the scanner.
-const JOB_ID = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
+// Job IDs are UUIDs from the local API and 64-character hex digests from the cloud
+// API. Checking the shape first means a typo or a pasted URL never turns into a
+// request to some other path on the scanner.
+const JOB_ID = /^(?:[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}|[0-9a-f]{64})$/i;
 const OPTIONS = { ...DEFAULTS, deadlineMs: 2 * 60 * 1000 };
 
 export async function refreshReportLink({ url, token, repository, jobId, fetchImpl = fetch, now = Date.now, sleep = delay, random = Math.random, options = OPTIONS, log = console.log }) {
