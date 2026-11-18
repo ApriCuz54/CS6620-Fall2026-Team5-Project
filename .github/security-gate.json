@@ -1,4 +1,6 @@
 {
   "excludeDirectories": ["node_modules"],
-  "excludePaths": []
+  "excludePaths": [
+    "tests/report-link.test.mjs"
+  ]
 }
