@@ -80,6 +80,13 @@ test('out of memory: killed by the memory limit, ERROR OUT_OF_MEMORY', { skip },
   assert.ok(noLeftoverContainers());
 });
 
+test('missing image: container never starts, ERROR LAUNCH_FAILED (retryable)', { skip }, async () => {
+  const r = await runScanInContainer(vulnerableJob, { image: 'cs6620-scanner:does-not-exist' });
+  assert.equal(r.status, 'ERROR');
+  assert.equal(r.error.code, 'LAUNCH_FAILED');
+  assert.ok(noLeftoverContainers());
+});
+
 test('crash: non-zero exit without output, ERROR CRASHED', { skip }, async () => {
   const r = await simulate('process.exit(3)');
   assert.equal(r.error?.code, 'CRASHED');

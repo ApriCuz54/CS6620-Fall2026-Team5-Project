@@ -117,9 +117,14 @@ export async function runScanInContainer(job, opts = {}) {
     if (reason === 'OUTPUT_TOO_LARGE') return errorResult('OUTPUT_TOO_LARGE', 'Scan output exceeded the limit.');
     if (exitCode === -1) return errorResult('LAUNCH_FAILED', 'Could not start the scan container.');
 
+    // If Docker has no record of the container, it never started (missing image,
+    // daemon unreachable, bad option). That is a host problem the worker should retry,
+    // not a scan result, so it must not be reported as CRASHED.
+    const info = dockerSync(o, ['inspect', '--format', '{{.State.OOMKilled}}', name]);
+    if (info.status !== 0) return errorResult('LAUNCH_FAILED', 'Could not start the scan container.');
+
     // Was it killed for using too much memory?
-    const oom = dockerSync(o, ['inspect', '--format', '{{.State.OOMKilled}}', name]).stdout?.trim();
-    if (oom === 'true') return errorResult('OUT_OF_MEMORY', 'Scan exceeded the memory limit.');
+    if (info.stdout?.trim() === 'true') return errorResult('OUT_OF_MEMORY', 'Scan exceeded the memory limit.');
 
     let result;
     try {
