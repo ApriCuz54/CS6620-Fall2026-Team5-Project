@@ -15,9 +15,14 @@ const index=process.argv.indexOf('--instance-type');
 const previous=existsSync(file)?readFileSync(file,'utf8').match(/instance_type\s*=\s*"([^"]+)"/)?.[1]:undefined;
 const type=index>=0?process.argv[index+1]:previous??'t3.micro';
 if(!['t3.micro','t3.small','t3.medium'].includes(type))throw new Error('Unreviewed instance type.');
-writeFileSync(file,`aws_account_id = "${connection.accountId}"\nimage_uri = "${image.imageUri}"\nscanner_image_uri = "${image.scannerImageUri}"\ninstance_type = "${type}"\n`,{mode:0o600});
+// The deployment accepts scans for exactly one repository (a fork needs its own).
+const repoIndex=process.argv.indexOf('--repository');
+const previousRepo=existsSync(file)?readFileSync(file,'utf8').match(/scanner_repository\s*=\s*"([^"]+)"/)?.[1]:undefined;
+const repository=repoIndex>=0?process.argv[repoIndex+1]:previousRepo??'ApriCuz54/CS6620-Fall2026-Team5-Project';
+if(!/^[A-Za-z0-9-]+\/[A-Za-z0-9._-]+$/.test(repository??''))throw new Error('Use --repository owner/name.');
+writeFileSync(file,`aws_account_id = "${connection.accountId}"\nimage_uri = "${image.imageUri}"\nscanner_image_uri = "${image.scannerImageUri}"\ninstance_type = "${type}"\nscanner_repository = "${repository}"\n`,{mode:0o600});
 const backend=`bucket = "cs6620-team-state-${connection.accountId}-us-east-1"\nkey = "app/terraform.tfstate"\nregion = "us-east-1"\nencrypt = true\nuse_lockfile = true\n`;
 const backendFile=join(dir,'backend.hcl');
 if(existsSync(backendFile)&&readFileSync(backendFile,'utf8')!==backend)throw new Error('Backend already differs; inspect before changing.');
 writeFileSync(backendFile,backend,{mode:0o600});
-console.log(`Prepared two-node ${type} hosting configuration; no resources applied.`);
+console.log(`Prepared two-node ${type} hosting configuration for ${repository}; no resources applied.`);

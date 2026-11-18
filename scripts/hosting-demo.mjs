@@ -19,7 +19,7 @@ async function request(path,body,auth=true){
  return r.json();
 }
 const name=process.argv[2]??'clean';const {files,verdict:expected}=fixture(name);
-const body={schemaVersion:'2',repository:'ApriCuz54/CS6620-Fall2026-Team5-Project',pullRequest:1,commitSha:randomBytes(20).toString('hex'),files};
+const body={schemaVersion:'2',repository:process.env.SCANNER_REPOSITORY??'ApriCuz54/CS6620-Fall2026-Team5-Project',pullRequest:1,commitSha:randomBytes(20).toString('hex'),files};
 let job=await request('/v1/jobs',body);const deadline=Date.now()+5*60000;
 while(true){
  console.log(`${job.status}; verdict=${job.verdict}; mergeAllowed=${job.mergeAllowed}`);

@@ -23,6 +23,15 @@ variable "scanner_image_uri" {
     error_message = "Use the immutable digest of the one-shot scanner image in the project ECR repository."
   }
 }
+variable "scanner_repository" {
+  description = "The one owner/repository this deployment accepts scans for."
+  type        = string
+  default     = "ApriCuz54/CS6620-Fall2026-Team5-Project"
+  validation {
+    condition     = can(regex("^[A-Za-z0-9-]+/[A-Za-z0-9._-]+$", var.scanner_repository))
+    error_message = "Use the GitHub owner/repository form, e.g. ApriCuz54/CS6620-Fall2026-Team5-Project."
+  }
+}
 variable "instance_type" {
   type    = string
   default = "t3.micro"
@@ -242,6 +251,7 @@ resource "aws_launch_template" "node" {
   user_data = base64encode(templatefile("${path.module}/user-data.sh.tftpl", {
     image_uri         = var.image_uri
     scanner_image_uri = var.scanner_image_uri
+    repository        = var.scanner_repository
     registry          = split("/", var.image_uri)[0]
     connection_base64 = base64encode(jsonencode(data.terraform_remote_state.storage.outputs.connection))
     token_parameter   = local.token_parameter
