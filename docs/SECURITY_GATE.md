@@ -28,3 +28,7 @@ If a finding is a false positive, don't work around the scanner in the code. Ask
 ## Getting the full report
 
 The run summary shows the job ID. The full report link expires after about 60 seconds, so it's usually dead by the time you click it. To get a fresh one, go to **Actions → Report link → Run workflow** and paste the job ID. The new link shows up in that run's summary. It also expires after about 60 seconds, so open it right away.
+
+## Live demo
+
+The security-gate check runs on every pull request while hosting is up.
