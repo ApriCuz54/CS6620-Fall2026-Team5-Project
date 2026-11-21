@@ -20,6 +20,7 @@ docker run -d --name cs6620-api --restart unless-stopped \
   -v /etc/cs6620/cloud-connection.json:/run/config/cloud-connection.json:ro \
   -e CLOUD_CONNECTION_FILE=/run/config/cloud-connection.json \
   -e CLOUD_DEPLOYED=1 -e CLOUD_API_PORT=3200 -e CLOUD_TOKEN_PARAMETER='${token_parameter}' \
+  -e SCANNER_REPOSITORY='${repository}' \
   -p 3200:3200 '${image_uri}'
 # The worker is the trusted scan launcher: it alone gets the Docker socket so it can
 # start one locked-down, no-network scan container per job. The public API never does.
@@ -33,6 +34,6 @@ docker run -d --name cs6620-worker --restart unless-stopped \
   -v /var/run/docker.sock:/var/run/docker.sock --group-add "$DOCKER_GID" \
   -e CLOUD_CONNECTION_FILE=/run/config/cloud-connection.json \
   -e CLOUD_DEPLOYED=1 -e SCANNER_ISOLATION=container -e DOCKER_CONFIG=/tmp/docker-config \
-  -e SCANNER_IMAGE='${scanner_image_uri}' \
+  -e SCANNER_IMAGE='${scanner_image_uri}' -e SCANNER_REPOSITORY='${repository}' \
   '${image_uri}' node scripts/cloud-worker.mjs
 echo 'Runtime containers started.'

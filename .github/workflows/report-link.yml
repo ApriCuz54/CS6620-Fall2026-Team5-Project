@@ -1,0 +1,45 @@
+name: Report link
+
+# Report links expire about 60 seconds after they are issued, so the one from a
+# security-gate run is usually dead by the time someone clicks it. Run this from the
+# Actions tab with the job ID from that run's summary to get a fresh link without
+# rescanning. The link goes only to this run's summary, never to the log.
+on:
+  workflow_dispatch:
+    inputs:
+      job_id:
+        description: Job ID from the security-gate run summary
+        required: true
+        type: string
+
+permissions:
+  contents: read
+
+jobs:
+  report-link:
+    name: report-link
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    # Only the reviewed copy of this workflow on the default branch should use the
+    # scanner token. Note this is a guard, not a wall: someone with write access could
+    # dispatch an edited copy from another branch. Moving the secrets into an
+    # environment that only allows the default branch would close that.
+    if: github.ref == format('refs/heads/{0}', github.event.repository.default_branch)
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          persist-credentials: false
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 24
+
+      - name: Get a fresh report link
+        env:
+          SCANNER_URL: ${{ secrets.SCANNER_URL }}
+          SCANNER_TOKEN: ${{ secrets.SCANNER_TOKEN }}
+          REPOSITORY: ${{ github.repository }}
+          # Passed as an environment variable, not pasted into the script, so the
+          # input can't inject shell commands.
+          JOB_ID: ${{ inputs.job_id }}
+        run: node scripts/report-link.mjs

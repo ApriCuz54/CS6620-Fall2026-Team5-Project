@@ -16,7 +16,7 @@ async function call(path,body,auth=true){
  return{status:response.status,body:await response.json()};
 }
 assert.equal((await call('/health',undefined,false)).status,200);
-const sample={schemaVersion:'2',repository:'ApriCuz54/CS6620-Fall2026-Team5-Project',pullRequest:1,commitSha:randomBytes(20).toString('hex'),files:FIXTURES.clean.files};
+const sample={schemaVersion:'2',repository:process.env.SCANNER_REPOSITORY??'ApriCuz54/CS6620-Fall2026-Team5-Project',pullRequest:1,commitSha:randomBytes(20).toString('hex'),files:FIXTURES.clean.files};
 assert.equal((await call('/v1/jobs',sample,false)).status,401);
 console.log('PASS: public HTTPS health works; unauthenticated submissions are refused.');
 for(const [name,{files,verdict}] of Object.entries(FIXTURES)){
