@@ -1,0 +1,54 @@
+name: Security Scan
+
+# pull_request_target runs this workflow file and the gate client from the protected
+# base branch, never from the pull request. The PR's files are fetched only as data
+# and read with `git show`; no PR code, script or dependency is ever executed here.
+# A PR therefore cannot edit the gate to approve itself. This file only takes effect
+# once it is on the default branch (main).
+on:
+  pull_request_target:
+    types: [opened, synchronize, reopened]
+
+permissions:
+  contents: read
+
+# One gate run per PR; a newer push cancels the older run, so an old commit's
+# result can never satisfy the check for the new head.
+concurrency:
+  group: security-scan-${{ github.event.pull_request.number }}
+  cancel-in-progress: true
+
+jobs:
+  scan:
+    name: security-gate
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    steps:
+      - name: Check out trusted gate code (base branch)
+        uses: actions/checkout@v4
+        with:
+          ref: ${{ github.event.pull_request.base.sha }}
+          fetch-depth: 0
+          persist-credentials: false
+
+      - name: Fetch the exact PR head commit as data
+        env:
+          HEAD_SHA: ${{ github.event.pull_request.head.sha }}
+          PR_NUMBER: ${{ github.event.pull_request.number }}
+        run: |
+          git fetch --no-tags origin "+refs/pull/${PR_NUMBER}/head:refs/remotes/gate/pr-head"
+          git cat-file -e "${HEAD_SHA}^{commit}"
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 24
+
+      - name: Scan pull request
+        env:
+          SCANNER_URL: ${{ secrets.SCANNER_URL }}
+          SCANNER_TOKEN: ${{ secrets.SCANNER_TOKEN }}
+          REPOSITORY: ${{ github.repository }}
+          PR_NUMBER: ${{ github.event.pull_request.number }}
+          BASE_SHA: ${{ github.event.pull_request.base.sha }}
+          HEAD_SHA: ${{ github.event.pull_request.head.sha }}
+        run: node scripts/github-client.mjs

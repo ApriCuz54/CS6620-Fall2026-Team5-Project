@@ -1,0 +1,39 @@
+#!/bin/bash
+set -euo pipefail
+exec > >(tee -a /var/log/cs6620-bootstrap.log) 2>&1
+echo 'Installing runtime; no service token or user credentials are present in user-data.'
+dnf install -y docker
+systemctl enable --now docker
+install -d -m 755 /etc/cs6620
+printf '%s' '${connection_base64}' | base64 -d > /etc/cs6620/cloud-connection.json
+chmod 644 /etc/cs6620/cloud-connection.json
+aws ecr get-login-password --region us-east-1 | docker login --username AWS --password-stdin '${registry}'
+docker pull '${image_uri}'
+# Fixed one-shot scanner image, pinned by digest. Scan containers never pull at run time.
+docker pull '${scanner_image_uri}'
+docker logout '${registry}'
+docker run -d --name cs6620-api --restart unless-stopped \
+  --memory=256m --cpus=0.5 --pids-limit=96 --read-only \
+  --tmpfs /tmp:size=16m,noexec,nosuid --cap-drop=ALL --security-opt=no-new-privileges \
+  --log-driver=awslogs --log-opt awslogs-region=us-east-1 \
+  --log-opt awslogs-group='${log_group}' --log-opt awslogs-stream="api-$(hostname)" \
+  -v /etc/cs6620/cloud-connection.json:/run/config/cloud-connection.json:ro \
+  -e CLOUD_CONNECTION_FILE=/run/config/cloud-connection.json \
+  -e CLOUD_DEPLOYED=1 -e CLOUD_API_PORT=3200 -e CLOUD_TOKEN_PARAMETER='${token_parameter}' \
+  -e SCANNER_REPOSITORY='${repository}' \
+  -p 3200:3200 '${image_uri}'
+# The worker is the trusted scan launcher: it alone gets the Docker socket so it can
+# start one locked-down, no-network scan container per job. The public API never does.
+DOCKER_GID="$(stat -c %g /var/run/docker.sock)"
+docker run -d --name cs6620-worker --restart unless-stopped \
+  --memory=256m --cpus=0.5 --pids-limit=96 --read-only \
+  --tmpfs /tmp:size=16m,noexec,nosuid --cap-drop=ALL --security-opt=no-new-privileges \
+  --log-driver=awslogs --log-opt awslogs-region=us-east-1 \
+  --log-opt awslogs-group='${log_group}' --log-opt awslogs-stream="worker-$(hostname)" \
+  -v /etc/cs6620/cloud-connection.json:/run/config/cloud-connection.json:ro \
+  -v /var/run/docker.sock:/var/run/docker.sock --group-add "$DOCKER_GID" \
+  -e CLOUD_CONNECTION_FILE=/run/config/cloud-connection.json \
+  -e CLOUD_DEPLOYED=1 -e SCANNER_ISOLATION=container -e DOCKER_CONFIG=/tmp/docker-config \
+  -e SCANNER_IMAGE='${scanner_image_uri}' -e SCANNER_REPOSITORY='${repository}' \
+  '${image_uri}' node scripts/cloud-worker.mjs
+echo 'Runtime containers started.'

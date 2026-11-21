@@ -1,0 +1,11 @@
+import { spawnSync } from 'node:child_process';
+import { mkdirSync, writeFileSync } from 'node:fs';
+import { fileURLToPath } from 'node:url';
+const root=new URL('../',import.meta.url);
+const r=spawnSync('terraform',['-chdir=infra/storage','output','-json','connection'],{cwd:fileURLToPath(root),encoding:'utf8',timeout:30000});
+if(r.status!==0)throw new Error('Could not read Terraform storage outputs. Ensure AWS_PROFILE is set and storage apply succeeded.');
+const config=JSON.parse(r.stdout);
+if(!/^\d{12}$/.test(config.accountId ?? ''))throw new Error('Unexpected output.');
+mkdirSync(new URL('.local/',root),{recursive:true,mode:0o700});
+writeFileSync(new URL('.local/cloud-connection.json',root),JSON.stringify(config,null,2)+'\n',{mode:0o600});
+console.log('Saved non-secret resource identifiers in ignored .local/cloud-connection.json.');
