@@ -1,6 +1,6 @@
 // Order lookup for the storefront API.
 export async function findOrders(db, customerId) {
-  return db.query("SELECT * FROM orders WHERE customer_id = '" + customerId + "'");
+  return db.query('SELECT * FROM orders WHERE customer_id = ?', [customerId]);
 }
 
 export function newOrderReference() {
