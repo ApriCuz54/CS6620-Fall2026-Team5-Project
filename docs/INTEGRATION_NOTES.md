@@ -1,6 +1,6 @@
 # Integration notes (November 14, 2026)
 
-Branch `integration/real-gate` = `foundation/local-api` + `feature/real-sast-worker` (Chengyuan) + `feature/github-workflow` (Arvind) + the integration work below. It replaces the dummy pipeline with the real scanner end to end. Read `contracts/README.md` for the new API and `docs/TEST_WINDOW.md` for deploying it. It was deployed and tested on AWS on November 14: see [TEST_RESULTS_2026-11-14.md](TEST_RESULTS_2026-11-14.md). Per-person next steps: [handoffs/ARVIND_NEXT.md](handoffs/ARVIND_NEXT.md), [handoffs/CHENGYUAN_NEXT.md](handoffs/CHENGYUAN_NEXT.md); those supersede the "For Arvind" and "For Chengyuan" lists below.
+Branch `integration/real-gate` = `foundation/local-api` + `feature/real-sast-worker` (Chengyuan) + `feature/github-workflow` (Arvind) + the integration work below. It replaces the dummy pipeline with the real scanner end to end. Read `contracts/README.md` for the new API and `docs/TEST_WINDOW.md` for deploying it. It was deployed and tested on AWS on November 14: see [TEST_RESULTS_2026-11-14.md](TEST_RESULTS_2026-11-14.md). It is merged into `main`, and the live GitHub check was proven on November 21 (vulnerable PR blocked, fixed commit passed, docs-only passed, report link refreshed): see [TEST_RESULTS_2026-11-21.md](TEST_RESULTS_2026-11-21.md). Per-person next steps: [handoffs/ARVIND_NEXT.md](handoffs/ARVIND_NEXT.md), [handoffs/CHENGYUAN_NEXT.md](handoffs/CHENGYUAN_NEXT.md); those supersede the "For Arvind" and "For Chengyuan" lists below.
 
 ## What changed
 
